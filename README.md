@@ -7,7 +7,7 @@ TL;DR: Text-to-video demo (80 frames, fp16, DPMSolverMultistepScheduler) — run
 ## 🎬 Demo
 
 <video width=720 controls>
-  <source src="assets/Canada_Downtown_Toronto.mp4" type="video/mp4">
+  <source src="Canada_Downtown_Toronto.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 

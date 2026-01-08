@@ -6,10 +6,8 @@ TL;DR: Text-to-video demo (80 frames, fp16, DPMSolverMultistepScheduler) — run
 
 ## 🎬 Demo
 
-<video width=720 controls>
-  <source src="Canada_Downtown_Toronto.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<video src="Canada_Downtown_Toronto.mp4" controls width="720"></video>
+
 
 **Prompt used to generate this video:**
 > A lakeshore view of Downtown Toronto Canada with city skyline reflected in Lake Ontario

@@ -92,5 +92,3 @@ ffmpeg -i assets/Canada_Downtown_Toronto.mp4 -vf "fps=12,scale=640:-1:flags=lanc
 If you have questions or want to collaborate, open an issue or contact the repository owner.
 
 ----
-
-*Committed by GitHub Copilot Chat Assistant.*

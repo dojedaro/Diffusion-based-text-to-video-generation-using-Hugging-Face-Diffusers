@@ -1,94 +1,70 @@
-# Diffusion-based Text-to-Video Generation (Hugging Face Diffusers)
+# Text-to-Video with Hugging Face Diffusers
 
-A concise implementation of a diffusion-based text-to-video pipeline using Hugging Face Diffusers. The notebook was executed on GPU (Google Colab) and exports generated frames to an MP4 video. This README uses the second-last generated video bundled in this repository.
+**Generating a short video of the Toronto skyline from a text prompt with ModelScope's 1.7B text-to-video diffusion model, on a free Colab GPU, and what it took to get a usable clip.**
 
-TL;DR: Text-to-video demo (80 frames, fp16, DPMSolverMultistepScheduler) — run the notebook in Colab for a reproducible demo.
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dojedaro/diffusers-text-to-video/blob/main/LLM_GEN_AI_text_to_video.ipynb)
+[![Notebook checks](https://github.com/dojedaro/diffusers-text-to-video/actions/workflows/notebooks.yml/badge.svg)](https://github.com/dojedaro/diffusers-text-to-video/actions/workflows/notebooks.yml)
 
-## 🎬 Demo
+![Generated aerial view of the Toronto skyline](toronto_preview.gif)
 
-<video src="Canada_Downtown_Toronto.mp4" controls width="720"></video>
+*Five seconds (25 frames at 5 fps), stitched from two generated clips. Full quality:
+[`Canada_Downtown_Toronto.mp4`](Canada_Downtown_Toronto.mp4).*
 
-▶️ [Download / open full video](Canada_Downtown_Toronto.mp4)
+## Results: four attempts
 
+The notebook keeps every attempt, which shows the trade-offs better than the final clip alone:
 
+| Attempt | Prompt | Settings | What changed |
+|---|---|---|---|
+| 1 | "A lakeshore view of Downtown Toronto Canada with city skyline reflected in Lake Ontario" | 30 steps | Baseline |
+| 2 | Detailed: CN Tower centered, skyscrapers reflecting in blue water | 40 steps, CPU offload + VAE slicing | More steps, and memory savers to fit the free GPU |
+| 3 | "A cartoon style skyline of Toronto with the CN Tower clearly visible…" | 25 steps, 40 frames, 256×256 | A simpler style at lower resolution |
+| 4 (shown) | "A cinematic aerial view of Toronto skyline with CN Tower…", plus a negative prompt | Two clips at 576×320, 30 steps: 15 skyline frames + 10 frames with a Canadian flag | The scene split into two prompts, generated separately and stitched |
 
-**Prompt used to generate this video:**
-> A lakeshore view of Downtown Toronto Canada with city skyline reflected in Lake Ontario
+Splitting the video into separate shots, each with its own prompt, and stitching them with ffmpeg gave
+more control over what appears when than one long prompt.
 
-## 🧠 Key technical details
-- Model: damo-vilab/text-to-video-ms-1.7b (pretrained text-to-video diffusion)
-- Framework: Hugging Face Diffusers
-- Scheduler: DPMSolverMultistepScheduler
-- Precision: fp16 (torch_dtype=torch.float16, variant="fp16")
-- Device: GPU (pipe.to("cuda") if available)
-- Notebook: `LLM_GEN_AI_text_to_video.ipynb`
-- Output: MP4 (frames -> ffmpeg)
+## How it works
 
-Typical example settings used for the demo:
-- num_frames: 80 (≈10s at default FPS)
-- num_inference_steps: 30
-- height × width: 256 × 256
-- guidance_scale: 7.5
+```mermaid
+flowchart LR
+    P([prompt + negative prompt]) --> D[damo-vilab/text-to-video-ms-1.7b<br/>fp16, DPMSolver++ scheduler]
+    D --> F1[clip 1: 15 frames]
+    D --> F2[clip 2: 10 frames]
+    F1 & F2 --> X[frames to PNG]
+    X --> V[ffmpeg: stitch<br/>and encode MP4]
+```
 
-## 📦 Dependencies
-- Python 3.8+
-- PyTorch with CUDA for GPU execution (if available)
-- git+https://github.com/huggingface/diffusers
-- transformers
-- accelerate
-- imageio[ffmpeg]
-- ffmpeg (system package)
+- **Model:** ModelScope's text-to-video (1.7B parameters), a 3D UNet that denoises a latent video,
+  loaded in fp16.
+- **Scheduler:** `DPMSolverMultistepScheduler`, which gets good samples in 25–40 steps instead of the
+  default 50.
+- **Memory:** `enable_model_cpu_offload()` and `enable_vae_slicing()` keep peak VRAM within a free
+  Colab GPU.
 
-Quick pip commands (as used in the notebook):
+## Run it
+
+Needs a CUDA GPU; Colab's free T4 works.
+
 ```bash
-pip install git+https://github.com/huggingface/diffusers
-pip install transformers accelerate imageio[ffmpeg] -q
-```
-Ubuntu example for ffmpeg:
-```bash
-sudo apt update && sudo apt install -y ffmpeg
+pip install -r requirements.txt     # diffusers, transformers, accelerate, imageio[ffmpeg]
+jupyter notebook LLM_GEN_AI_text_to_video.ipynb
 ```
 
-## ▶️ Quickstart (Colab)
-Open and run the notebook in Colab: https://colab.research.google.com/github/dojedaro/Diffusion-based-text-to-video-generation-using-Hugging-Face-Diffusers/blob/main/LLM_GEN_AI_text_to_video.ipynb
+The model weights download from the Hugging Face Hub on first run.
 
-Minimal steps to reproduce in the notebook:
-1. Install dependencies.
-2. Load the pipeline:
-```python
-from diffusers import DiffusionPipeline, DPMSolverMultistepScheduler
-pipe = DiffusionPipeline.from_pretrained("damo-vilab/text-to-video-ms-1.7b", torch_dtype=torch.float16, variant="fp16")
-pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
-pipe = pipe.to("cuda" if torch.cuda.is_available() else "cpu")
-```
-3. Generate frames with your prompt:
-```python
-prompt = "A lakeshore view of Downtown Toronto Canada with city skyline reflected in Lake Ontario"
-video_frames = pipe(prompt, num_inference_steps=30, num_frames=80, height=256, width=256, guidance_scale=7.5).frames
-```
-4. Save frames and encode to MP4 using imageio/ffmpeg (the notebook includes a working example).
+## Stack
 
-## 🛠 Reproducibility tips & notes
-- Reduce height/width or num_frames to fit limited VRAM.
-- Lower num_inference_steps (20–30) for faster generation with slightly lower visual quality.
-- Use fp16 and CUDA for significant speed and memory savings.
-- If temporal jitter/artifacts appear, try increasing num_inference_steps or experimenting with a different scheduler or seed.
+Python, PyTorch, Hugging Face Diffusers, Transformers, Accelerate, ffmpeg.
 
-Recommended GIF preview command (to create a small preview):
-```bash
-ffmpeg -i assets/Canada_Downtown_Toronto.mp4 -vf "fps=12,scale=640:-1:flags=lanczos" -t 6 -y assets/preview.gif
-```
+## Limitations and next steps
 
-## ⚠️ Ethics & usage
-- Review the model card and license for damo-vilab/text-to-video-ms-1.7b on Hugging Face before commercial use.
-- Be mindful of privacy, copyright, and potential misuse when generating or sharing synthetic media.
-- Include clear disclaimers when presenting generated media in public-facing work.
+- ModelScope 1.7B is an early open text-to-video model; newer open models produce longer, sharper and
+  more consistent clips at higher resolution.
+- No quantitative quality measure. A prompt-adherence score (CLIP similarity between frames and the
+  prompt) would turn the attempts above into a comparison.
+- Fixed seeds per attempt, so each change in the table is the only thing that changed.
 
-## 📚 Credits
-- Hugging Face Diffusers: https://github.com/huggingface/diffusers
-- Model: damo-vilab/text-to-video-ms-1.7b (see the model card for citation details)
+## License
 
-## 🔗 Contact
-If you have questions or want to collaborate, open an issue or contact the repository owner.
-
-----
+MIT

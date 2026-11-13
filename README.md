@@ -44,7 +44,7 @@ flowchart LR
 
 ## Run it
 
-Needs a CUDA GPU; Colab's free T4 works.
+Needs a CUDA GPU; the notebook was run on a Google Colab GPU.
 
 ```bash
 pip install -r requirements.txt     # diffusers, transformers, accelerate, imageio[ffmpeg]

@@ -1,0 +1,14 @@
+# Packages the notebook imports or installs. Versions were not recorded when it was run;
+# pin them (pip freeze) after a successful run to make it fully reproducible.
+accelerate
+diffusers
+einops
+git+https://github.com/huggingface/diffusers
+imageio
+imageio-ffmpeg
+matplotlib
+numpy
+pillow
+safetensors
+torch
+transformers
